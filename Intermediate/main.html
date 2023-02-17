@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+
+<script id="vertex-shader" type="x-shader/x-vertex">#version 300 es
+//NEW FOR BLINN PHONG
+in vec4 vPosition;
+in vec3 vNormal;
+in vec4 vColor ;
+in vec2 vTexCoord;
+
+uniform mat4 modelViewMatrix;
+uniform mat4 normalMatrix;
+uniform mat4 projectionMatrix;
+uniform vec4 lightPosition;
+
+out vec3 fPos ; // vertex position in eye coords
+out vec3 fLpos ; // light position in eye coords
+out vec3 fN ; // vertex normal in eye coords
+out vec2 fTexCoord;
+
+
+void
+main()
+{   
+    //NEW FOR BLIN PHONG 
+
+    // Transform vertex position into eye coordinates
+    fPos = (modelViewMatrix * vPosition).xyz;
+
+    //transform normal in eye coordinates
+    fN = normalize( (normalMatrix*vec4(vNormal,0.0)).xyz);
+
+    // pass through light position
+    fLpos = lightPosition.xyz ;
+
+    // Transform vertex position in clip coordinates
+    gl_Position = projectionMatrix * modelViewMatrix * vPosition; 
+
+    fTexCoord = vTexCoord;
+}
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">#version 300 es
+
+//NEW FOR BLIN PHONG
+precision mediump float;
+
+uniform vec4 ambientProduct, diffuseProduct, specularProduct;
+uniform float shininess;
+uniform sampler2D texture1;
+uniform sampler2D texture2;
+uniform int useTextures;
+uniform int useShader;
+
+in vec3 fPos ;
+in vec3 fLpos ;
+in vec3 fN ;
+in vec2 fTexCoord ;
+
+layout (location = 0) out vec4 fragColor ;
+
+
+vec4 ads(vec3 pos, vec3 lpos, vec3 N) {
+    vec3 L = normalize(lpos - pos) ;
+    vec3 V = normalize(-pos) ; // why?
+    vec3 R = reflect(-L, N) ;
+    //Halfway vector 
+    vec3 H = normalize(L + V);
+
+    // Compute terms in the illumination equation
+    vec4 ambient = ambientProduct;
+    float Kd = max( dot(L, N), 0.0 );
+    vec4 diffuse = vec4(0.0, 0.0, 0.0, 1.0);
+    vec4 specular = vec4(0.0, 0.0, 0.0, 1.0);
+    diffuse = Kd*diffuseProduct;
+    //float Ks = pow( max(dot(R, V), 0.0), shininess );
+    float Ks = pow( max(dot(H, N), 0.0), shininess );
+    specular = Ks * specularProduct;
+    if( dot(L, N) < 0.0 ) {
+    specular = vec4(0.0, 0.0, 0.0, 1.0);
+    }
+    vec4 color = ambient + diffuse + specular;
+    color.a = 1.0 ;
+    return color ;
+    }
+
+// altered fragment shader meant to enhance the specular properties of the water
+vec4 cust(vec3 pos, vec3 lpos, vec3 N){
+    vec3 L = normalize(lpos - pos) ;
+    vec3 V = normalize(-pos) ; 
+    vec3 R = reflect(-L, N) ;
+
+
+    // Compute terms in the illumination equation
+    vec4 ambient = ambientProduct;
+    float Kd = max( dot(L, N), 0.0 );
+    vec4 diffuse = vec4(0.0, 0.0, 0.0, 1.0);
+    vec4 specular = vec4(0.0, 0.0, 0.0, 1.0);
+    diffuse = Kd*diffuseProduct;
+    float Ks = pow( max(dot(R, V), 0.0), shininess );
+    specular = Ks * specularProduct;
+    if( dot(L, N) < 0.0 ) {
+    specular = vec4(0.0, 0.0, 0.0, 1.0);
+    }
+    //vec4 color = ambient + diffuse + specular;
+
+    //Highlights the specular properties of the obejct when rendering
+    vec4 color = Ks * specular;
+    color.a = 1.0 ;
+    return color ;
+    }
+
+
+void
+main()
+{   
+  
+
+    //original 
+    if( useTextures != 1)
+    {
+		fragColor = texture( texture1, fTexCoord);
+        //fragColor = texture( texture2, fTexCoord);
+	}
+    else if(useShader == 1){
+        fragColor = cust(fPos, fLpos, fN);
+    }
+	else
+	{
+        fragColor = ads(fPos,fLpos,fN);
+        //fragColor = cust(fPos, fLpos, fN);
+	}
+    
+}
+</script>
+
+<script type="text/javascript" src="Common/webgl-utils.js"></script>
+<script type="text/javascript" src="Common/initShaders.js"></script>
+
+<script type="text/javascript" src="Common/MV.js"></script>
+<script type="text/javascript" src="objects.js"></script>
+<script type="text/javascript" src="main.js"></script>
+
+<div id="test">
+</div>
+
+<body>
+<canvas id="gl-canvas" width="512" height="512">
+Oops ... your browser doesn't support the HTML5 canvas element
+</canvas>
+
+<br/>
+<br/>
+
+</body>
+</html>
